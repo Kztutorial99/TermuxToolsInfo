@@ -3,12 +3,6 @@ name: Build APK
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-
-env:
-  ANDROID_HOME: /usr/local/lib/android/sdk
-  ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
 jobs:
   build:
@@ -25,25 +19,28 @@ jobs:
         
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
-      with:
-        log-accepted-android-licenses: true
-        
-    - name: Install Android SDK components
+      
+    - name: Accept Android Licenses
       run: |
-        sdkmanager --licenses <<< y || true
-        sdkmanager "platform-tools" "platforms;android-34" "build-tools;33.0.1"
+        yes | sdkmanager --licenses > /dev/null 2>&1 || true
+        
+    - name: Install required SDK components
+      run: |
+        sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;33.0.1" || true
       
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
       
     - name: Build with Gradle
-      run: ./gradlew assembleDebug --stacktrace --no-daemon
-      
+      run: ./gradlew assembleDebug --no-daemon --info
+      env:
+        GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
+        
     - name: Upload APK
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: app-debug
-        path: app/build/outputs/apk/debug/app-debug.apk
+        name: TermuxToolsInfo-debug
+        path: app/build/outputs/apk/debug/*.apk
         retention-days: 30
         if-no-files-found: ignore
