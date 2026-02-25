@@ -27,14 +27,6 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
-
-    publishing {
-        multipleVariants {
-            withSourcesJar()
-            withJavadocJar()
-            allVariants()
-        }
-    }
 }
 
 dependencies {
@@ -44,20 +36,5 @@ dependencies {
 task sourceJar(type: Jar) {
     from android.sourceSets.main.java.srcDirs
     archiveClassifier = "sources"
-}
-
-afterEvaluate {
-    publishing {
-        publications {
-            // Creates a Maven publication called "release".
-            release(MavenPublication) {
-                from components.default
-                groupId = 'com.termux'
-                artifactId = 'terminal-view'
-                version = '0.118.0'
-                artifact(sourceJar)
-            }
-        }
-    }
 }
 

@@ -3,12 +3,6 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
-        android:id="@+id/action_terminal"
-        android:title="@string/action_terminal"
-        android:icon="@drawable/ic_terminal"
-        app:showAsAction="ifRoom" />
-
-    <item
         android:id="@+id/action_scripts"
         android:title="@string/action_scripts"
         android:icon="@android:drawable/ic_menu_edit"

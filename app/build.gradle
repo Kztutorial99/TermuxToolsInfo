@@ -50,7 +50,7 @@ dependencies {
     implementation 'androidx.recyclerview:recyclerview:1.3.1'
     implementation 'androidx.cardview:cardview:1.0.0'
     implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
-    
+
     // Real Termux Libraries (Same as AIDE-Termux)
     implementation project(':terminal-view')
     implementation project(':terminal-emulator')
@@ -59,4 +59,12 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    
+    // Force guava version to avoid conflicts
+    configurations.all {
+        resolutionStrategy {
+            force 'com.google.guava:guava:24.1-jre'
+            exclude group: 'com.google.guava', module: 'listenablefuture'
+        }
+    }
 }
