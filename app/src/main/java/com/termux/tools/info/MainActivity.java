@@ -87,7 +87,10 @@ public class MainActivity extends AppCompatActivity implements PackageAdapter.On
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
-        if (id == R.id.action_scripts) {
+        if (id == R.id.action_terminal) {
+            startActivity(new Intent(this, TerminalActivity.class));
+            return true;
+        } else if (id == R.id.action_scripts) {
             startActivity(new Intent(this, ScriptsActivity.class));
             return true;
         } else if (id == R.id.action_system_info) {

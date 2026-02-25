@@ -43,6 +43,13 @@
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.TermuxToolsInfo" />
 
+        <activity
+            android:name=".TerminalActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.TermuxToolsInfo"
+            android:windowSoftInputMode="adjustResize" />
+
     </application>
 
 </manifest>
