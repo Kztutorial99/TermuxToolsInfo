@@ -1,15 +1,19 @@
 package com.termux.tools.info;
 
+import android.content.DialogInterface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
@@ -19,6 +23,7 @@ import com.termux.view.TerminalView;
 import com.termux.view.TerminalViewClient;
 
 import java.io.File;
+import java.io.IOException;
 
 /**
  * TerminalActivity - Embedded Termux Terminal
@@ -26,83 +31,112 @@ import java.io.File;
  */
 public class TerminalActivity extends AppCompatActivity implements TerminalViewClient, TerminalSessionClient {
 
+    private static final String TAG = "TerminalActivity";
+    
     private TerminalView terminalView;
     private TerminalSession terminalSession;
-    private Process shellProcess;
+    private boolean hasError = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d(TAG, "TerminalActivity onCreate started");
 
-        // Create root layout
-        FrameLayout rootLayout = new FrameLayout(this);
-        rootLayout.setLayoutParams(new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT));
+        try {
+            // Create root layout
+            FrameLayout rootLayout = new FrameLayout(this);
+            rootLayout.setLayoutParams(new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
 
-        // Setup Toolbar
-        Toolbar toolbar = new Toolbar(this);
-        toolbar.setTitle("Termux Terminal");
-        toolbar.setTitleTextColor(0xFFFFFFFF);
-        toolbar.setBackgroundColor(0xFF009688);
-        toolbar.setPopupTheme(androidx.appcompat.R.style.ThemeOverlay_AppCompat_Dark);
+            // Setup Toolbar
+            Toolbar toolbar = new Toolbar(this);
+            toolbar.setTitle("Termux Terminal");
+            toolbar.setTitleTextColor(0xFFFFFFFF);
+            toolbar.setBackgroundColor(0xFF009688);
+            toolbar.setPopupTheme(androidx.appcompat.R.style.ThemeOverlay_AppCompat_Dark);
 
-        toolbar.setNavigationIcon(androidx.appcompat.R.drawable.abc_ic_ab_back_material);
-        toolbar.setNavigationOnClickListener(v -> finish());
+            toolbar.setNavigationIcon(androidx.appcompat.R.drawable.abc_ic_ab_back_material);
+            toolbar.setNavigationOnClickListener(v -> finish());
 
-        // Add toolbar to layout
-        rootLayout.addView(toolbar);
+            // Add toolbar to layout
+            rootLayout.addView(toolbar);
 
-        // Create TerminalView
-        terminalView = new TerminalView(this, null);
-        terminalView.setId(R.id.terminal_view);
-        terminalView.setBackgroundColor(0xFF000000);
+            // Create TerminalView
+            terminalView = new TerminalView(this, null);
+            terminalView.setId(R.id.terminal_view);
+            terminalView.setBackgroundColor(0xFF000000);
 
-        FrameLayout.LayoutParams terminalParams = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT);
-        terminalParams.topMargin = (int) (getResources().getDisplayMetrics().density * 56);
+            FrameLayout.LayoutParams terminalParams = new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT);
+            terminalParams.topMargin = (int) (getResources().getDisplayMetrics().density * 56);
 
-        rootLayout.addView(terminalView, terminalParams);
+            rootLayout.addView(terminalView, terminalParams);
 
-        setContentView(rootLayout);
+            setContentView(rootLayout);
 
-        // Set this as the client
-        terminalView.setTerminalViewClient(this);
+            // Set this as the client
+            terminalView.setTerminalViewClient(this);
 
-        // Initialize terminal
-        initializeTerminal();
+            // Initialize terminal with delay to ensure UI is ready
+            new Handler(Looper.getMainLooper()).postDelayed(this::initializeTerminal, 100);
+
+            Log.d(TAG, "TerminalActivity onCreate completed successfully");
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onCreate", e);
+            showErrorAndExit("Failed to create terminal: " + e.getMessage(), e);
+        }
     }
 
     private void initializeTerminal() {
+        if (hasError) return;
+        
         try {
+            Log.d(TAG, "Initializing terminal...");
+            
             // Find shell
             String shell = findShell();
             if (shell == null) {
-                Toast.makeText(this, "No shell found!", Toast.LENGTH_LONG).show();
+                showErrorAndExit("No shell found on this device!", null);
                 return;
             }
+            
+            Log.d(TAG, "Shell found: " + shell);
 
             // Create terminal session
             String[] processArgs = {shell};
-            terminalSession = new TerminalSession(shell, "/", processArgs, getEnv(), 1024, this);
+            String[] env = getEnv();
+            
+            Log.d(TAG, "Creating TerminalSession...");
+            terminalSession = new TerminalSession(shell, "/", processArgs, env, 1024, this);
             
             // Attach session to view
-            terminalView.attachSession(terminalSession);
-
-            Toast.makeText(this, "Terminal initialized", Toast.LENGTH_SHORT).show();
+            runOnUiThread(() -> {
+                try {
+                    Log.d(TAG, "Attaching session to TerminalView...");
+                    terminalView.attachSession(terminalSession);
+                    Toast.makeText(TerminalActivity.this, "Terminal initialized successfully", Toast.LENGTH_SHORT).show();
+                    Log.d(TAG, "Terminal initialized successfully");
+                } catch (Exception e) {
+                    Log.e(TAG, "Error attaching session", e);
+                    showErrorAndExit("Failed to attach terminal: " + e.getMessage(), e);
+                }
+            });
 
         } catch (Exception e) {
-            Toast.makeText(this, "Failed to initialize terminal: " + e.getMessage(), 
-                    Toast.LENGTH_LONG).show();
-            e.printStackTrace();
+            Log.e(TAG, "Error initializing terminal", e);
+            showErrorAndExit("Failed to initialize terminal: " + e.getMessage(), e);
         }
     }
 
     private String findShell() {
         String[] shells = {"/system/bin/sh", "/bin/sh"};
         for (String s : shells) {
-            if (new File(s).exists()) {
+            File file = new File(s);
+            Log.d(TAG, "Checking shell: " + s + " exists=" + file.exists());
+            if (file.exists()) {
                 return s;
             }
         }
@@ -113,9 +147,38 @@ public class TerminalActivity extends AppCompatActivity implements TerminalViewC
         return new String[] {
             "PATH=/system/bin:/system/xbin:/bin",
             "TERM=xterm-256color",
-            "HOME=" + System.getProperty("user.home", "/data/data/" + getPackageName()),
-            "LANG=C.UTF-8"
+            "HOME=" + getFilesDir().getAbsolutePath(),
+            "LANG=C.UTF-8",
+            "PWD=" + getFilesDir().getAbsolutePath()
         };
+    }
+
+    private void showErrorAndExit(String message, Exception e) {
+        hasError = true;
+        
+        String fullMessage = message;
+        if (e != null) {
+            fullMessage += "\n\nError: " + e.getClass().getSimpleName();
+            Log.e(TAG, "Full error details", e);
+        }
+        
+        final String errorMessage = fullMessage;
+        
+        runOnUiThread(() -> {
+            try {
+                new AlertDialog.Builder(this)
+                    .setTitle("Terminal Error")
+                    .setMessage(errorMessage)
+                    .setIcon(android.R.drawable.ic_dialog_alert)
+                    .setPositiveButton("OK", (dialog, which) -> finish())
+                    .setCancelable(false)
+                    .show();
+            } catch (Exception ex) {
+                Log.e(TAG, "Error showing dialog", ex);
+                Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show();
+                finish();
+            }
+        });
     }
 
     @Override
@@ -193,41 +256,42 @@ public class TerminalActivity extends AppCompatActivity implements TerminalViewC
 
     @Override
     public void onEmulatorSet() {
+        Log.d(TAG, "Emulator set");
     }
 
     @Override
     public void logError(String tag, String message) {
-        android.util.Log.e(tag, message);
+        Log.e(tag, message);
     }
 
     @Override
     public void logWarn(String tag, String message) {
-        android.util.Log.w(tag, message);
+        Log.w(tag, message);
     }
 
     @Override
     public void logInfo(String tag, String message) {
-        android.util.Log.i(tag, message);
+        Log.i(tag, message);
     }
 
     @Override
     public void logDebug(String tag, String message) {
-        android.util.Log.d(tag, message);
+        Log.d(tag, message);
     }
 
     @Override
     public void logVerbose(String tag, String message) {
-        android.util.Log.v(tag, message);
+        Log.v(tag, message);
     }
 
     @Override
     public void logStackTraceWithMessage(String tag, String message, Exception e) {
-        android.util.Log.e(tag, message, e);
+        Log.e(tag, message, e);
     }
 
     @Override
     public void logStackTrace(String tag, Exception e) {
-        android.util.Log.e(tag, "Stack trace", e);
+        Log.e(tag, "Stack trace", e);
     }
 
     @Override
@@ -244,7 +308,6 @@ public class TerminalActivity extends AppCompatActivity implements TerminalViewC
     public void onSessionFinished(TerminalSession finishedSession) {
         runOnUiThread(() -> {
             Toast.makeText(this, "Session finished", Toast.LENGTH_SHORT).show();
-            finish();
         });
     }
 
@@ -270,6 +333,7 @@ public class TerminalActivity extends AppCompatActivity implements TerminalViewC
 
     @Override
     public void setTerminalShellPid(TerminalSession session, int pid) {
+        Log.d(TAG, "Terminal shell PID: " + pid);
     }
 
     @Override
@@ -281,5 +345,18 @@ public class TerminalActivity extends AppCompatActivity implements TerminalViewC
     }
 
     public void onScreenResumed() {
+    }
+    
+    @Override
+    protected void onDestroy() {
+        Log.d(TAG, "TerminalActivity onDestroy");
+        if (terminalSession != null) {
+            try {
+                terminalSession.finishIfRunning();
+            } catch (Exception e) {
+                Log.e(TAG, "Error finishing session", e);
+            }
+        }
+        super.onDestroy();
     }
 }
