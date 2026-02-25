@@ -31,6 +31,16 @@ android {
     buildFeatures {
         viewBinding true
     }
+
+    // ABI Splits - Generate separate APKs for each ABI (like termux-app)
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+            universalApk true
+        }
+    }
 }
 
 dependencies {
