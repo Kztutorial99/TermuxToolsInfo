@@ -1,6 +1,5 @@
 package com.termux.tools.info;
 
-import android.content.DialogInterface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -10,8 +9,10 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ScrollView;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -23,6 +24,9 @@ import com.termux.view.TerminalView;
 import com.termux.view.TerminalViewClient;
 
 import java.io.File;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.IOException;
 
 /**
@@ -36,6 +40,9 @@ public class TerminalActivity extends AppCompatActivity implements TerminalViewC
     private TerminalView terminalView;
     private TerminalSession terminalSession;
     private boolean hasError = false;
+    private Process shellProcess;
+    private TextView terminalOutput;
+    private boolean useSimpleTerminal = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,10 +51,11 @@ public class TerminalActivity extends AppCompatActivity implements TerminalViewC
 
         try {
             // Create root layout
-            FrameLayout rootLayout = new FrameLayout(this);
-            rootLayout.setLayoutParams(new FrameLayout.LayoutParams(
+            LinearLayout rootLayout = new LinearLayout(this);
+            rootLayout.setLayoutParams(new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT));
+            rootLayout.setOrientation(LinearLayout.VERTICAL);
 
             // Setup Toolbar
             Toolbar toolbar = new Toolbar(this);
@@ -62,31 +70,139 @@ public class TerminalActivity extends AppCompatActivity implements TerminalViewC
             // Add toolbar to layout
             rootLayout.addView(toolbar);
 
+            if (useSimpleTerminal) {
+                // Use simple TextView-based terminal (more stable)
+                setupSimpleTerminal(rootLayout);
+            } else {
+                // Use TerminalView (may crash on some devices)
+                setupTerminalView(rootLayout);
+            }
+
+            setContentView(rootLayout);
+            Log.d(TAG, "TerminalActivity onCreate completed");
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onCreate", e);
+            showErrorAndExit("Failed to create terminal: " + e.getMessage(), e);
+        }
+    }
+
+    private void setupSimpleTerminal(LinearLayout rootLayout) {
+        try {
+            Log.d(TAG, "Setting up simple terminal...");
+            
+            terminalOutput = new TextView(this);
+            terminalOutput.setLayoutParams(new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT, 1.0f));
+            terminalOutput.setBackgroundColor(0xFF000000);
+            terminalOutput.setTextColor(0xFF00FF00);
+            terminalOutput.setPadding(16, 16, 16, 16);
+            terminalOutput.setTypeface(android.graphics.Typeface.MONOSPACE);
+            terminalOutput.setTextSize(12);
+            terminalOutput.setText("Termux Terminal\n");
+            terminalOutput.setMovementMethod(android.text.method.ScrollingMovementMethod.getInstance());
+
+            ScrollView scrollView = new ScrollView(this);
+            scrollView.setLayoutParams(new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT, 1.0f));
+            scrollView.addView(terminalOutput);
+
+            rootLayout.addView(scrollView);
+
+            // Start shell in background
+            startSimpleShell();
+
+            Toast.makeText(this, "Simple terminal mode", Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "Simple terminal setup completed");
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting up simple terminal", e);
+            showErrorAndExit("Failed to setup simple terminal: " + e.getMessage(), e);
+        }
+    }
+
+    private void startSimpleShell() {
+        new Thread(() -> {
+            try {
+                Log.d(TAG, "Starting shell process...");
+                
+                String shell = findShell();
+                if (shell == null) {
+                    runOnUiThread(() -> showErrorAndExit("No shell found!", null));
+                    return;
+                }
+
+                shellProcess = Runtime.getRuntime().exec(shell);
+                
+                // Read output
+                BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(shellProcess.getInputStream()));
+                
+                String line;
+                while ((line = reader.readLine()) != null && shellProcess.isAlive()) {
+                    final String outputLine = line + "\n";
+                    runOnUiThread(() -> {
+                        if (terminalOutput != null) {
+                            terminalOutput.append(outputLine);
+                        }
+                    });
+                }
+                
+                // Read any remaining output
+                while ((line = reader.readLine()) != null) {
+                    final String outputLine = line + "\n";
+                    runOnUiThread(() -> {
+                        if (terminalOutput != null) {
+                            terminalOutput.append(outputLine);
+                        }
+                    });
+                }
+
+                Log.d(TAG, "Shell process finished");
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Error in shell process", e);
+                runOnUiThread(() -> {
+                    if (!hasError && terminalOutput != null) {
+                        terminalOutput.append("\nError: " + e.getMessage() + "\n");
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private void setupTerminalView(LinearLayout rootLayout) {
+        try {
+            Log.d(TAG, "Setting up TerminalView...");
+            
             // Create TerminalView
             terminalView = new TerminalView(this, null);
             terminalView.setId(R.id.terminal_view);
             terminalView.setBackgroundColor(0xFF000000);
 
-            FrameLayout.LayoutParams terminalParams = new FrameLayout.LayoutParams(
+            terminalView.setLayoutParams(new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT);
-            terminalParams.topMargin = (int) (getResources().getDisplayMetrics().density * 56);
+                    ViewGroup.LayoutParams.MATCH_PARENT, 1.0f));
 
-            rootLayout.addView(terminalView, terminalParams);
-
-            setContentView(rootLayout);
+            rootLayout.addView(terminalView);
 
             // Set this as the client
             terminalView.setTerminalViewClient(this);
 
-            // Initialize terminal with delay to ensure UI is ready
-            new Handler(Looper.getMainLooper()).postDelayed(this::initializeTerminal, 100);
+            // Initialize terminal with delay
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                if (!hasError) {
+                    initializeTerminal();
+                }
+            }, 200);
 
-            Log.d(TAG, "TerminalActivity onCreate completed successfully");
+            Log.d(TAG, "TerminalView setup completed");
 
         } catch (Exception e) {
-            Log.e(TAG, "Error in onCreate", e);
-            showErrorAndExit("Failed to create terminal: " + e.getMessage(), e);
+            Log.e(TAG, "Error setting up TerminalView", e);
+            showErrorAndExit("Failed to setup TerminalView: " + e.getMessage(), e);
         }
     }
 
@@ -96,7 +212,6 @@ public class TerminalActivity extends AppCompatActivity implements TerminalViewC
         try {
             Log.d(TAG, "Initializing terminal...");
             
-            // Find shell
             String shell = findShell();
             if (shell == null) {
                 showErrorAndExit("No shell found on this device!", null);
@@ -105,19 +220,17 @@ public class TerminalActivity extends AppCompatActivity implements TerminalViewC
             
             Log.d(TAG, "Shell found: " + shell);
 
-            // Create terminal session
             String[] processArgs = {shell};
             String[] env = getEnv();
             
             Log.d(TAG, "Creating TerminalSession...");
             terminalSession = new TerminalSession(shell, "/", processArgs, env, 1024, this);
             
-            // Attach session to view
             runOnUiThread(() -> {
                 try {
                     Log.d(TAG, "Attaching session to TerminalView...");
                     terminalView.attachSession(terminalSession);
-                    Toast.makeText(TerminalActivity.this, "Terminal initialized successfully", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(TerminalActivity.this, "Terminal initialized", Toast.LENGTH_SHORT).show();
                     Log.d(TAG, "Terminal initialized successfully");
                 } catch (Exception e) {
                     Log.e(TAG, "Error attaching session", e);
@@ -135,7 +248,6 @@ public class TerminalActivity extends AppCompatActivity implements TerminalViewC
         String[] shells = {"/system/bin/sh", "/bin/sh"};
         for (String s : shells) {
             File file = new File(s);
-            Log.d(TAG, "Checking shell: " + s + " exists=" + file.exists());
             if (file.exists()) {
                 return s;
             }
@@ -164,7 +276,7 @@ public class TerminalActivity extends AppCompatActivity implements TerminalViewC
         
         final String errorMessage = fullMessage;
         
-        runOnUiThread(() -> {
+        new Handler(Looper.getMainLooper()).post(() -> {
             try {
                 new AlertDialog.Builder(this)
                     .setTitle("Terminal Error")
@@ -296,12 +408,10 @@ public class TerminalActivity extends AppCompatActivity implements TerminalViewC
 
     @Override
     public void onTextChanged(TerminalSession changedSession) {
-        // Text changed in terminal
     }
 
     @Override
     public void onTitleChanged(TerminalSession changedSession) {
-        // Title changed
     }
 
     @Override
@@ -355,6 +465,13 @@ public class TerminalActivity extends AppCompatActivity implements TerminalViewC
                 terminalSession.finishIfRunning();
             } catch (Exception e) {
                 Log.e(TAG, "Error finishing session", e);
+            }
+        }
+        if (shellProcess != null) {
+            try {
+                shellProcess.destroy();
+            } catch (Exception e) {
+                Log.e(TAG, "Error destroying process", e);
             }
         }
         super.onDestroy();
