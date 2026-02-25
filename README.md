@@ -1,34 +1,47 @@
 # Termux Tools Info
 
-A comprehensive Android application for viewing installed packages, scripts, and system information in Termux.
+A comprehensive Android application with **embedded Real Termux Terminal** - just like AIDE-Termux!
 
-## Features
+## 🎉 New Features (v1.0)
 
+- **🖥️ Embedded Real Termux Terminal** - Full Termux terminal experience without installing Termux app!
 - **Package Viewer**: View all installed Termux packages with details
 - **Scripts Browser**: Browse and manage your scripts (.sh, .py, .js)
-- **System Information**: Detailed system information including:
-  - Android version and device info
-  - CPU and memory information
-  - Storage details
-  - Termux-specific information
+- **System Information**: Detailed system information
 
-## Requirements
+## 📱 Screenshots
 
-- Android 7.0 (API 24) or higher
-- Termux installed (for full functionality)
-- Java JDK 8 or higher
-- Android SDK
+The app features:
+- Real Termux terminal emulator (green on black)
+- Material Design UI
+- Dark/Light theme support
+- Pull-to-refresh functionality
+- Package search
 
-## Building from Source
+## 🚀 Building from Source
 
-### Method 1: Using Build Script
+### Method 1: GitHub Actions (Recommended)
+
+The APK will be automatically built when you push to the repository:
+
+1. Push your code to GitHub
+2. Go to **Actions** tab
+3. Select the workflow run
+4. Download the APK from artifacts
+
+### Method 2: Local Build with Android Studio
 
 ```bash
-cd ~/TermuxToolsInfo
-./build.sh
+# Clone the repository
+git clone https://github.com/Kztutorial99/TermuxToolsInfo.git
+cd TermuxToolsInfo
+
+# Open in Android Studio
+# Let Gradle sync download Termux modules
+# Build > Build Bundle(s) / APK(s) > Build APK(s)
 ```
 
-### Method 2: Using Gradle Directly
+### Method 3: Local Build with Gradle
 
 ```bash
 cd ~/TermuxToolsInfo
@@ -43,101 +56,97 @@ chmod +x gradlew
 ./gradlew assembleRelease
 ```
 
-### Install Required Dependencies
+## 📋 Requirements
 
-```bash
-# In Termux
-pkg update
-pkg install openjdk-17
-pkg install android-tools
-```
+- Android Studio Arctic Fox or newer
+- JDK 17 or higher
+- Android SDK (API 24+)
+- NDK 25.2.9519653 (for Termux terminal-emulator)
 
-## Project Structure
+## 🏗️ Project Structure
 
 ```
 TermuxToolsInfo/
-├── app/
-│   ├── src/
-│   │   └── main/
-│   │       ├── java/com/termux/tools/info/
-│   │       │   ├── MainActivity.java
-│   │       │   ├── PackageDetailsActivity.java
-│   │       │   ├── ScriptsActivity.java
-│   │       │   ├── SystemInfoActivity.java
-│   │       │   ├── adapter/
-│   │       │   │   └── PackageAdapter.java
-│   │       │   ├── model/
-│   │       │   │   ├── PackageInfo.java
-│   │       │   │   └── ScriptInfo.java
-│   │       │   └── util/
-│   │       │       └── TermuxScanner.java
-│   │       ├── res/
-│   │       │   ├── layout/
-│   │       │   ├── values/
-│   │       │   ├── menu/
-│   │       │   └── drawable/
-│   │       └── AndroidManifest.xml
+├── app/                          # Main application module
+│   ├── src/main/
+│   │   ├── java/com/termux/tools/info/
+│   │   │   ├── MainActivity.java
+│   │   │   ├── TerminalActivity.java    # Real Termux Terminal
+│   │   │   ├── PackageDetailsActivity.java
+│   │   │   ├── ScriptsActivity.java
+│   │   │   ├── SystemInfoActivity.java
+│   │   │   ├── adapter/
+│   │   │   ├── model/
+│   │   │   └── util/
+│   │   ├── res/
+│   │   └── AndroidManifest.xml
 │   └── build.gradle
+├── terminal-emulator/            # Termux terminal emulator (from termux-app)
+├── terminal-view/                # Termux terminal view (from termux-app)
+├── termux-shared/                # Termux shared utilities (from termux-app)
+├── .github/workflows/
+│   └── build.yml                 # GitHub Actions workflow
 ├── gradle/
-│   └── wrapper/
 ├── build.gradle
 ├── settings.gradle
-├── gradlew
-└── build.sh
+└── gradlew
 ```
 
-## Output APK Location
+## 🔧 Technologies Used
 
-After successful build, the APK will be located at:
+- **Language**: Java
+- **Terminal**: Real Termux Libraries (terminal-emulator, terminal-view, termux-shared)
+- **UI Framework**: AndroidX, Material Components
+- **Build Tool**: Gradle 7.6.3+
+- **Min SDK**: API 24 (Android 7.0)
+- **Target SDK**: API 34 (Android 14)
+- **NDK**: 25.2.9519653
+
+## 📦 APK Output Location
+
 ```
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## Installation
+Or in the `Apk/` folder after build:
+```
+Apk/TermuxToolsInfo-v1.0-Terminal.apk
+```
+
+## 📲 Installation
 
 ```bash
-# Install the APK
+# Via ADB
 adb install app/build/outputs/apk/debug/app-debug.apk
 
 # Or copy to device and install manually
 pm install app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## Screenshots
-
-The app features:
-- Material Design UI
-- Dark/Light theme support
-- Pull-to-refresh functionality
-- Package search
-- Detailed package information
-
-## Technologies Used
-
-- **Language**: Java
-- **UI Framework**: AndroidX, Material Components
-- **Build Tool**: Gradle
-- **Min SDK**: API 24 (Android 7.0)
-- **Target SDK**: API 34 (Android 14)
-
-## Permissions
+## 🔐 Permissions
 
 - `READ_EXTERNAL_STORAGE`: To scan scripts in storage
 - `WRITE_EXTERNAL_STORAGE`: To save package information
 - `INTERNET`: For package information lookup
+- `FOREGROUND_SERVICE`: For terminal session
 
-## Contributing
+## 🤝 Contributing
 
 Feel free to submit issues and enhancement requests!
 
-## License
+## 📄 License
 
 MIT License - feel free to use this project for learning or personal use.
 
-## Author
+## 👨‍💻 Author
 
 Created for Termux users who want to manage their packages and scripts easily.
 
-## Disclaimer
+## 📝 Special Thanks
 
-This app is designed to work with Termux. Some features may require Termux to be installed on the device.
+- [Termux App](https://github.com/termux/termux-app) - For the amazing terminal emulator
+- [AIDE-Termux](https://github.com/victor20010/AIDE-Termux) - For inspiration on integrating Termux
+
+## ⚠️ Disclaimer
+
+This app includes the real Termux terminal emulator libraries. The terminal functionality works standalone without requiring the Termux app to be installed.

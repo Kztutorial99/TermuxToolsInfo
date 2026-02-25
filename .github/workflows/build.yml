@@ -1,39 +1,52 @@
-name: Build APK
+name: Build TermuxToolsInfo APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
-    - uses: actions/checkout@v4
-
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-
+        cache: gradle
+        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      
     - name: Grant execute permission for gradlew
-      run: |
-        chmod +x gradlew
-        # Download gradle wrapper if not present
-        if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-          curl -L https://raw.githubusercontent.com/gradle/gradle/v7.6.3/gradle/wrapper/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar
-        fi
-
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
-
-    - name: Build with Gradle
+      run: chmod +x gradlew
+      
+    - name: Build Debug APK with Gradle
       run: ./gradlew assembleDebug --no-daemon
-
-    - name: Upload APK
+      
+    - name: Create APK directory
+      run: mkdir -p Apk
+      
+    - name: Copy APK to output folder
+      run: cp app/build/outputs/apk/debug/app-debug.apk Apk/TermuxToolsInfo-v1.0-Terminal.apk
+      
+    - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: TermuxToolsInfo-debug.apk
-        path: app/build/outputs/apk/debug/app-debug.apk
-        retention-days: 30
+        name: TermuxToolsInfo-APK
+        path: Apk/TermuxToolsInfo-v1.0-Terminal.apk
+        
+    - name: Upload APK to Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: Apk/TermuxToolsInfo-v1.0-Terminal.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

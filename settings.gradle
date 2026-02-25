@@ -15,3 +15,6 @@ dependencyResolutionManagement {
 }
 rootProject.name = "TermuxToolsInfo"
 include ':app'
+include ':terminal-emulator'
+include ':terminal-view'
+include ':termux-shared'

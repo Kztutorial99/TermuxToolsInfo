@@ -15,3 +15,14 @@ app/release
 gradle-wrapper.jar
 builds/
 *.tar.gz
+
+# Keep Termux modules but exclude their build artifacts
+terminal-emulator/build
+terminal-view/build
+termux-shared/build
+terminal-emulator/.cxx
+terminal-view/.cxx
+termux-shared/.cxx
+
+# Exclude APK from git (optional - uncomment if needed)
+# Apk/*.apk
